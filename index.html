@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MM2 Lite — Play-Money Coin Flip &amp; Case Opening</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2430; --line:#293341;
+    --text:#e6edf3; --muted:#8b949e; --accent:#7c3aed; --accent2:#4f46e5;
+    --win:#3fb950; --lose:#f85149; --gold:#d29922;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #1b2233 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh; line-height:1.5;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:20px}
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;margin-bottom:22px;
+  }
+  .brand{font-size:1.35rem;font-weight:800;letter-spacing:-.5px}
+  .brand span{color:var(--accent)}
+  .badge{
+    font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+    color:var(--gold);border:1px solid var(--gold);border-radius:999px;
+    padding:3px 10px;margin-left:8px;vertical-align:middle;
+  }
+  .wallet{
+    display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:10px 16px;
+  }
+  .wallet .coins{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .wallet small{color:var(--muted);display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px}
+
+  .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .tab{
+    background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    padding:9px 18px;border-radius:10px;cursor:pointer;font:inherit;font-weight:600;font-size:.92rem;
+  }
+  .tab:hover{color:var(--text)}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:24px;margin-bottom:18px;
+  }
+  .panel h2{font-size:1.05rem;margin-bottom:16px;letter-spacing:.2px}
+  .hidden{display:none !important}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .grow{flex:1 1 200px}
+
+  label{display:block;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  input,select{
+    width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+    border-radius:9px;padding:11px 12px;font:inherit;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  button{
+    border:0;border-radius:9px;padding:12px 20px;font:inherit;font-weight:700;
+    cursor:pointer;background:var(--accent);color:#fff;transition:filter .15s,transform .1s;
+  }
+  button:hover:not(:disabled){filter:brightness(1.12)}
+  button:active:not(:disabled){transform:translateY(1px)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .btn-ghost:hover:not(:disabled){color:var(--text);border-color:var(--muted)}
+  .btn-sm{padding:8px 14px;font-size:.85rem}
+
+  /* coin */
+  .coin-stage{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:18px;padding:30px 0 10px;
+  }
+  .coin{
+    width:130px;height:130px;border-radius:50%;
+    background:linear-gradient(145deg,#f5d76e,#c9931b);
+    display:flex;align-items:center;justify-content:center;
+    font-size:2.6rem;font-weight:800;color:#5a4310;
+    box-shadow:0 0 0 8px rgba(210,153,34,.12),0 14px 30px rgba(0,0,0,.5);
+    transform-style:preserve-3d;
+  }
+  .coin.flipping{animation:flip 1.05s cubic-bezier(.35,.1,.35,1)}
+  .coin.tails-face{background:linear-gradient(145deg,#cfd8e3,#7d8b9e);color:#2b3442;
+    box-shadow:0 0 0 8px rgba(139,148,158,.12),0 14px 30px rgba(0,0,0,.5)}
+  @keyframes flip{
+    0%{transform:rotateY(0) translateY(0)}
+    50%{transform:rotateY(900deg) translateY(-46px)}
+    100%{transform:rotateY(1800deg) translateY(0)}
+  }
+  .verdict{font-size:1.25rem;font-weight:800;min-height:1.6em}
+  .verdict.win{color:var(--win)} .verdict.lose{color:var(--lose)}
+
+  /* cases */
+  .case-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .case{
+    background:var(--panel2);border:1px solid var(--line);border-radius:13px;
+    padding:16px;cursor:pointer;transition:border-color .15s,transform .15s;
+  }
+  .case:hover{transform:translateY(-3px)}
+  .case.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .case-name{font-weight:700;margin-bottom:4px}
+  .case-price{color:var(--gold);font-weight:700;font-size:.9rem}
+
+  .reel-clip{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--bg);position:relative}
+  .reel-clip::before,.reel-clip::after{
+    content:"";position:absolute;top:0;bottom:0;width:60px;z-index:3;pointer-events:none;
+  }
+  .reel-clip::before{left:0;background:linear-gradient(90deg,rgba(13,17,23,.95),transparent)}
+  .reel-clip::after{right:0;background:linear-gradient(270deg,rgba(13,17,23,.95),transparent)}
+  .reel{display:flex;gap:10px;padding:18px 0;will-change:transform}
+  .item{
+    flex:0 0 116px;height:132px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:11px;padding:10px;text-align:center;display:flex;
+    flex-direction:column;justify-content:center;gap:6px;
+  }
+  .item .emoji{font-size:1.9rem;line-height:1}
+  .item .nm{font-size:.78rem;font-weight:600;line-height:1.25}
+  .item .val{font-size:.74rem;color:var(--muted);font-variant-numeric:tabular-nums}
+  .item .rar{font-size:.6rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+  .r-common{color:#8b949e;border-color:#2f3947}
+  .r-uncommon{color:#3fb950}
+  .r-rare{color:#58a6ff}
+  .r-legendary{color:#d29922}
+  .r-ancient{color:#f85149}
+  .cursor-line{
+    position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;
+    background:var(--gold);z-index:4;box-shadow:0 0 14px var(--gold);
+  }
+  .drop{text-align:center;padding:14px 0 2px;font-weight:700}
+  .drop .big{font-size:1.05rem}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.6px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted);text-align:center;padding:22px 0;font-size:.9rem}
+
+  .log{max-height:230px;overflow-y:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.76rem}
+  .log div{padding:6px 0;border-bottom:1px solid var(--line);color:var(--muted);word-break:break-all}
+  .log b{color:var(--text)}
+  .fair-note{font-size:.78rem;color:var(--muted);margin-top:12px}
+  .fair-note code{background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+  .warn{
+    background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.4);
+    color:#e3b341;border-radius:11px;padding:12px 15px;font-size:.84rem;margin-bottom:18px;
+  }
+  footer{color:var(--muted);font-size:.78rem;text-align:center;padding:24px 0 40px}
+  @media(max-width:560px){.coin{width:104px;height:104px;font-size:2rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <span class="brand">MM2 <span>Lite</span></span>
+      <span class="badge">Play money</span>
+    </div>
+    <div class="row" style="align-items:center">
+      <div class="wallet">
+        <div>
+          <small>Wallet</small>
+          <div class="coins" id="wallet">1,000</div>
+        </div>
+      </div>
+      <button class="btn-ghost btn-sm" id="resetWallet">Reset</button>
+    </div>
+  </header>
+
+  <div class="warn">
+    <b>None of this is real.</b> The credits here are numbers in your browser's local storage — you
+    can't buy them, sell them, withdraw them, or trade them for anything, and no Roblox or Murder
+    Mystery 2 account is involved anywhere. The odds are printed on the page. When the wallet hits
+    zero, press Reset.
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="flip">Coin Flip</button>
+    <button class="tab" data-view="cases">Case Opening</button>
+    <button class="tab" data-view="board">Leaderboard</button>
+    <button class="tab" data-view="fair">Provably Fair</button>
+    <button class="tab" data-view="admin">⚙ Admin</button>
+  </div>
+
+  <!-- ============ COIN FLIP ============ -->
+  <section id="view-flip">
+    <div class="panel">
+      <h2 id="flipTitle">Coin Flip — 2× payout, 49% win chance</h2>
+      <div class="row">
+        <div class="grow">
+          <label for="flipBet">Bet amount</label>
+          <input id="flipBet" type="number" min="1" step="1" value="50">
+        </div>
+        <div class="grow">
+          <label for="flipSide">Call it</label>
+          <select id="flipSide">
+            <option value="heads">Heads</option>
+            <option value="tails">Tails</option>
+          </select>
+        </div>
+        <div class="grow" style="display:flex;align-items:flex-end;gap:8px">
+          <button id="flipBtn" style="flex:1">Flip</button>
+          <button class="btn-ghost" id="flipHalf">½</button>
+          <button class="btn-ghost" id="flipDouble">2×</button>
+        </div>
+      </div>
+
+      <div class="coin-stage">
+        <div class="coin" id="coin">H</div>
+        <div class="verdict" id="flipVerdict">Pick a side and flip.</div>
+      </div>
+      <p class="fair-note">
+        The call is <code>HMAC-SHA256(serverSeed, clientSeed:nonce)</code>. The first 8 hex digits
+        become a number in <span style="white-space:nowrap">[0, 1)</span>; below the win chance shown
+        above is a win. The house edge is the number you're paying to play.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ CASES ============ -->
+  <section id="view-cases" class="hidden">
+    <div class="panel">
+      <h2>Case Opening — pick a case</h2>
+      <div class="case-grid" id="caseGrid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="reel-clip">
+        <div class="cursor-line"></div>
+        <div class="reel" id="reel"></div>
+      </div>
+      <div class="drop" id="caseDrop">Open a case to see what drops.</div>
+      <div class="row" style="margin-top:16px">
+        <button id="openCase" style="flex:1">Open Case</button>
+        <button class="btn-ghost" id="unboxLogToggle">Show odds</button>
+      </div>
+      <div id="oddsBox" class="hidden" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <!-- ============ LEADERBOARD ============ -->
+  <section id="view-board" class="hidden">
+    <div class="panel">
+      <h2>Leaderboard</h2>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">
+        Local to this browser and this device. There is no server, so no one else's scores appear here.
+      </p>
+      <div class="row" style="margin-bottom:16px">
+        <div class="grow">
+          <label for="playerName">Add a score as</label>
+          <input id="playerName" maxlength="18" placeholder="Your name">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button id="saveScore">Save current wallet</button>
+        </div>
+      </div>
+      <div id="boardWrap"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Session history</h2>
+      <div id="history"></div>
+    </div>
+  </section>
+
+  <!-- ============ PROVABLY FAIR ============ -->
+  <section id="view-fair" class="hidden">
+    <div class="panel">
+      <h2>Provably fair — how each result is made</h2>
+      <p style="color:var(--muted);font-size:.9rem;margin-bottom:18px">
+        Every flip and every case roll comes from one hash. The server seed is generated in your
+        browser with <code>crypto.getRandomValues</code> and shown below so you can check the maths
+        yourself. Nothing is fetched, nothing is sent anywhere — open devtools and watch the network
+        tab stay empty.
+      </p>
+
+      <label for="serverSeed">Server seed</label>
+      <input id="serverSeed" readonly style="font-family:ui-monospace,monospace;font-size:.8rem">
+
+      <div class="row" style="margin-top:14px">
+        <div class="grow">
+          <label for="clientSeed">Client seed (yours — change it any time)</label>
+          <input id="clientSeed" style="font-family:ui-monospace,monospace;font-size:.8rem">
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn-ghost" id="randomiseSeed">Randomise</button>
+          <button class="btn-ghost" id="revealSeed">Reveal new seed</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="grow">
+          <label>Nonce (rolls this seed)</label>
+          <input id="nonce" readonly>
+        </div>
+        <div class="grow">
+          <label>Last hash</label>
+          <input id="lastHash" readonly style="font-family:ui-monospace,monospace;font-size:.8rem">
+        </div>
+      </div>
+
+      <p class="fair-note">
+        Verify with any HMAC tool: key = server seed, message = <code>clientSeed:nonce</code>,
+        SHA-256, hex output. The first 8 characters, read as a hex integer and divided by
+        4294967296, give the number in <span style="white-space:nowrap">[0, 1)</span> that decides the roll.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>Hash log</h2>
+      <div class="log" id="hashLog"><div>No rolls yet.</div></div>
+    </div>
+  </section>
+
+  <!-- ============ ADMIN ============ -->
+  <section id="view-admin" class="hidden">
+    <div class="panel" id="adminLock">
+      <h2>Admin — locked</h2>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Default PIN is <code>1234</code>. Change it below once you're in.
+      This is a convenience lock for a shared screen, not real security: everything lives in this browser.</p>
+      <div class="row">
+        <div class="grow"><label for="pinIn">PIN</label><input id="pinIn" type="password" inputmode="numeric"></div>
+        <div style="display:flex;align-items:flex-end"><button id="pinGo">Unlock</button></div>
+      </div>
+      <div id="pinMsg" style="color:var(--lose);margin-top:10px;min-height:1.2em"></div>
+    </div>
+
+    <div id="adminBody" class="hidden">
+      <div class="panel">
+        <h2>Overview</h2>
+        <div class="row" id="stats"></div>
+        <div class="row" style="margin-top:16px"><button class="btn-ghost btn-sm" id="lockAgain">Lock admin</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Wallet</h2>
+        <div class="row">
+          <div class="grow"><label for="setWallet">Set wallet to</label><input id="setWallet" type="number" min="0"></div>
+          <div class="grow"><label for="setStart">Reset amount</label><input id="setStart" type="number" min="1"></div>
+          <div style="display:flex;align-items:flex-end;gap:8px">
+            <button id="applyWallet">Apply</button>
+            <button class="btn-ghost" id="give1k">+1,000</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Coin flip</h2>
+        <label for="flipWin">Win chance: <b id="flipWinLbl"></b> (house edge <b id="edgeLbl"></b>)</label>
+        <input id="flipWin" type="range" min="1" max="99" step="1">
+      </div>
+
+      <div class="panel">
+        <h2>Cases — prices &amp; drop weights</h2>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Weights are relative (set 0 to remove an item). RTP = expected payout ÷ price.</p>
+        <div id="caseEditor"></div>
+        <div class="row" style="margin-top:14px">
+          <button id="saveCases">Save cases</button>
+          <button class="btn-ghost" id="defaultCases">Restore defaults</button>
+        </div>
+        <div id="caseMsg" style="margin-top:10px;color:var(--win);min-height:1.2em"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Data</h2>
+        <div class="row">
+          <button class="btn-ghost" id="clearBoard">Clear leaderboard</button>
+          <button class="btn-ghost" id="clearHist">Clear history &amp; hash log</button>
+          <button class="btn-ghost" id="exportData">Export JSON</button>
+          <label class="btn-ghost" style="border:1px solid var(--line);border-radius:9px;padding:12px 20px;margin:0;cursor:pointer;text-transform:none;letter-spacing:0;font-size:1rem;font-weight:700">
+            Import JSON<input type="file" id="importData" accept=".json" class="hidden"></label>
+          <button id="wipeAll" style="background:var(--lose)">Wipe everything</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Change PIN</h2>
+        <div class="row">
+          <div class="grow"><input id="newPin" type="password" placeholder="New PIN (4+ chars)"></div>
+          <button id="savePin">Save PIN</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    MM2 Lite — a front-end toy. Play money only; not affiliated with Roblox, Murder Mystery 2, or anything else.
+  </footer>
+</div>
+
+<script>
+const START_WALLET = 1000;
+const STORE = 'mm2lite.v1';
+
+const COIN_ITEMS = [
+  { name:'Common Knife',      emoji:'🔪', rarity:'common',    value:15  },
+  { name:'Common Gun',        emoji:'🔫', rarity:'common',    value:25  },
+  { name:'Uncommon Blade',    emoji:'⚔️', rarity:'uncommon',  value:70  },
+  { name:'Uncommon Blaster',  emoji:'💥', rarity:'uncommon',  value:120 },
+  { name:'Rare Seer',         emoji:'🔮', rarity:'rare',      value:280 },
+  { name:'Rare Chroma',       emoji:'🌈', rarity:'rare',      value:450 },
+  { name:'Legendary Fang',    emoji:'🐉', rarity:'legendary', value:1100},
+  { name:'Legendary Light',   emoji:'✨', rarity:'legendary', value:2200},
+  { name:'Ancient Godly',     emoji:'😈', rarity:'ancient',   value:6000},
+  { name:'Ancient Eternal',   emoji:'👑', rarity:'ancient',   value:25000}
+];
+
+const CASES = [
+  { id:'starter', name:'Starter Case',    price:100,  table:'base'  },
+  { id:'premium', name:'Premium Case',    price:500,  table:'prem'  },
+  { id:'ancient', name:'Ancient Case',    price:2500, table:'anc'   }
+];
+
+const TABLES = {
+  base: { 'Common Knife':45,'Common Gun':25,'Uncommon Blade':15,'Uncommon Blaster':9,
+          'Rare Seer':4,'Rare Chroma':1.5,'Legendary Fang':0.5 },
+  prem: { 'Common Gun':22,'Uncommon Blade':24,'Uncommon Blaster':20,'Rare Seer':16,
+          'Rare Chroma':11,'Legendary Fang':5,'Legendary Light':1.6,'Ancient Godly':0.4 },
+  anc:  { 'Rare Seer':18,'Rare Chroma':22,'Legendary Fang':30,'Legendary Light':20,
+          'Ancient Godly':8,'Ancient Eternal':2 }
+};
+
+function loadState(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch(e){ s = null; }
+  if(!s || typeof s !== 'object') s = {};
+  s.wallet    = Number.isFinite(s.wallet) ? s.wallet : START_WALLET;
+  s.clientSeed= typeof s.clientSeed === 'string' && s.clientSeed ? s.clientSeed : randomHex(8);
+  s.serverSeed= typeof s.serverSeed === 'string' && s.serverSeed ? s.serverSeed : randomHex(32);
+  s.nonce     = Number.isFinite(s.nonce) ? s.nonce : 0;
+  s.lastHash  = typeof s.lastHash === 'string' ? s.lastHash : '';
+  s.log       = Array.isArray(s.log) ? s.log.slice(0,40) : [];
+  s.history   = Array.isArray(s.history) ? s.history.slice(0,60) : [];
+  s.board     = Array.isArray(s.board) ? s.board.slice(0,25) : [];
+  s.unboxed   = Array.isArray(s.unboxed) ? s.unboxed : [];
+  return s;
+}
+function save(){ localStorage.setItem(STORE, JSON.stringify(state)); }
+
+let state = loadState();
+
+function randomHex(bytes){
+  const a = new Uint8Array(bytes);
+  crypto.getRandomValues(a);
+  return [...a].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function roll(){
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(state.serverSeed), { name:'HMAC', hash:'SHA-256' }, false, ['sign']
+  );
+  const msg  = `${state.clientSeed}:${state.nonce}`;
+  const sig  = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
+  const hex  = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2,'0')).join('');
+  const int  = parseInt(hex.slice(0,8), 16);
+  return { value: int / 4294967296, hash: hex, msg };
+}
+
+function pushHash(entry){
+  state.lastHash = entry.hash;
+  state.log.unshift(`${entry.hash.slice(0,32)}…  ←  ${entry.msg}`);
+  state.log = state.log.slice(0,40);
+}
+
+function pickFromTable(tableKey, r){
+  const table = TABLES[tableKey];
+  const names = Object.keys(table);
+  const total = names.reduce((a,n) => a + table[n], 0);
+  let acc = 0;
+  const target = r * total;
+  for(const n of names){
+    acc += table[n];
+    if(target < acc) return COIN_ITEMS.find(i => i.name === n);
+  }
+  return COIN_ITEMS.find(i => i.name === names[names.length-1]);
+}
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+function renderWallet(){
+  $('wallet').textContent = fmt(state.wallet);
+  save();
+}
+function addHistory(text, delta){
+  state.history.unshift({ text, delta, at: Date.now() });
+  state.history = state.history.slice(0,60);
+}
+function renderHistory(){
+  const el = $('history');
+  if(!state.history.length){ el.innerHTML = '<div class="empty">Nothing yet.</div>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Event</th><th class="num">Credits</th></tr></thead><tbody>' +
+    state.history.map(h => {
+      const cls = h.delta > 0 ? 'style="color:var(--win)"' : h.delta < 0 ? 'style="color:var(--lose)"' : '';
+      const amt = h.delta === 0 ? '—' : (h.delta > 0 ? '+' : '') + fmt(h.delta);
+      return `<tr><td>${esc(h.text)}</td><td class="num" ${cls}>${amt}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function renderFair(){
+  $('serverSeed').value = state.serverSeed;
+  $('clientSeed').value = state.clientSeed;
+  $('nonce').value      = state.nonce;
+  $('lastHash').value   = state.lastHash || '—';
+  $('hashLog').innerHTML = state.log.length
+    ? state.log.map(l => `<div>${esc(l)}</div>`).join('')
+    : '<div>No rolls yet.</div>';
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    ['flip','cases','board','fair','admin'].forEach(v => {
+      $('view-' + v).classList.toggle('hidden', v !== t.dataset.view);
+    });
+    if(t.dataset.view === 'board'){ renderHistory(); renderBoard(); }
+    if(t.dataset.view === 'admin'){ renderAdmin(); }
+  });
+});
+
+let flipping = false;
+
+$('flipHalf').addEventListener('click', () => {
+  $('flipBet').value = Math.max(1, Math.floor(Number($('flipBet').value || 0) / 2));
+});
+$('flipDouble').addEventListener('click', () => {
+  $('flipBet').value = Math.min(state.wallet, Math.max(1, Math.floor(Number($('flipBet').value || 0) * 2)));
+});
+
+$('flipBtn').addEventListener('click', async () => {
+  if(flipping) return;
+  const bet = Math.floor(Number($('flipBet').value));
+  const side = $('flipSide').value;
+  if(!Number.isFinite(bet) || bet < 1){ $('flipVerdict').textContent = 'Bet at least 1 credit.'; $('flipVerdict').className = 'verdict lose'; return; }
+  if(bet > state.wallet){ $('flipVerdict').textContent = 'Not enough credits in the wallet.'; $('flipVerdict').className = 'verdict lose'; return; }
+
+  flipping = true;
+  $('flipBtn').disabled = true;
+  $('flipVerdict').textContent = 'Flipping…';
+  $('flipVerdict').className = 'verdict';
+
+  const r = await roll();
+  const outcome = r.value < state.cfg.flipWin ? side : (side === 'heads' ? 'tails' : 'heads');
+  const win = outcome === side;
+
+  const coin = $('coin');
+  coin.classList.remove('flipping');
+  void coin.offsetWidth;
+  coin.classList.add('flipping');
+
+  await new Promise(res => setTimeout(res, 1060));
+
+  coin.textContent = outcome === 'heads' ? 'H' : 'T';
+  coin.classList.toggle('tails-face', outcome === 'tails');
+
+  state.nonce += 1;
+  pushHash(r);
+
+  if(win){
+    state.wallet += bet;
+    $('flipVerdict').textContent = `It landed ${outcome}. You won ${fmt(bet)} credits.`;
+    $('flipVerdict').className = 'verdict win';
+    addHistory(`Coin flip — called ${side}, landed ${outcome}`, bet);
+  } else {
+    state.wallet -= bet;
+    $('flipVerdict').textContent = `It landed ${outcome}. You lost ${fmt(bet)} credits.`;
+    $('flipVerdict').className = 'verdict lose';
+    addHistory(`Coin flip — called ${side}, landed ${outcome}`, -bet);
+  }
+
+  renderWallet();
+  renderFair();
+  renderHistory();
+  flipping = false;
+  $('flipBtn').disabled = false;
+
+  if(state.wallet < 1){
+    $('flipVerdict').textContent += ' Wallet empty — press Reset to top up.';
+  }
+});
+
+let selectedCase = CASES[0];
+let reelValues = [];
+
+function itemHtml(item){
+  return `<div class="item r-${item.rarity}">
+      <div class="emoji">${item.emoji}</div>
+      <div class="nm">${esc(item.name)}</div>
+      <div class="val">${fmt(item.value)}</div>
+      <div class="rar">${item.rarity}</div>
+    </div>`;
+}
+
+function buildCaseGrid(){
+  $('caseGrid').innerHTML = CASES.map(c =>
+    `<div class="case${c.id === selectedCase.id ? ' selected' : ''}" data-id="${c.id}">
+       <div class="case-name">${esc(c.name)}</div>
+       <div class="case-price">${fmt(c.price)} credits</div>
+     </div>`).join('');
+  document.querySelectorAll('.case').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedCase = CASES.find(c => c.id === el.dataset.id);
+      buildCaseGrid();
+      renderOdds();
+    });
+  });
+}
+
+function renderOdds(){
+  const t = TABLES[selectedCase.table];
+  const names = Object.keys(t);
+  const total = names.reduce((a,n) => a + t[n], 0);
+  $('oddsBox').innerHTML =
+    `<table><thead><tr><th>Item</th><th>Chance</th><th class="num">Value</th></tr></thead><tbody>` +
+    names.map(n => {
+      const it = COIN_ITEMS.find(i => i.name === n);
+      const pct = t[n] / total * 100;
+      return `<tr><td><span class="rar r-${it.rarity}">${it.emoji} ${esc(n)}</span></td>
+              <td>${pct.toFixed(2)}%</td><td class="num">${fmt(it.value)}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+function makeReelItems(count){
+  reelValues = [];
+  for(let i = 0; i < count; i++) reelValues.push(pickFromTable(selectedCase.table, Math.random()));
+}
+
+$('openCase').addEventListener('click', async () => {
+  const btn = $('openCase');
+  if(btn.disabled) return;
+  if(state.wallet < selectedCase.price){
+    $('caseDrop').innerHTML = `<span class="big" style="color:var(--lose)">Not enough credits — ${esc(selectedCase.name)} costs ${fmt(selectedCase.price)}.</span>`;
+    return;
+  }
+  btn.disabled = true;
+
+  state.wallet -= selectedCase.price;
+  const r = await roll();
+  state.nonce += 1;
+  pushHash(r);
+  const won = pickFromTable(selectedCase.table, r.value);
+  const payout = won.value;
+
+  const REEL_LEN = 50, WIN_INDEX = 42;
+  makeReelItems(REEL_LEN);
+  const items = [];
+  for(let i = 0; i < REEL_LEN; i++) items.push(itemHtml(i === WIN_INDEX ? won : reelValues[i]));
+  const reel = $('reel');
+  reel.style.transition = 'none';
+  reel.style.transform  = 'translateX(0px)';
+  reel.innerHTML = items.join('');
+  $('caseDrop').innerHTML = 'Spinning…';
+  void reel.offsetWidth;
+
+  const ITEM_W = 116 + 10;
+  const clipW  = reel.parentElement.clientWidth;
+  const jitter = (Math.random() * 0.6 - 0.3) * ITEM_W;
+  const target = -(WIN_INDEX * ITEM_W + ITEM_W / 2 - clipW / 2 + jitter);
+
+  reel.style.transition = 'transform 4.6s cubic-bezier(.12,.72,.24,1)';
+  reel.style.transform  = `translateX(${target}px)`;
+
+  setTimeout(() => {
+    state.wallet += payout;
+    renderWallet();
+    $('caseDrop').innerHTML = `<span class="big">You unboxed <span class="rar r-${won.rarity}">${won.emoji} ${esc(won.name)}</span> — ${fmt(payout)} credits</span>`;
+    addHistory(`Opened ${selectedCase.name} → ${won.name}`, payout - selectedCase.price);
+    state.unboxed.unshift(won.name);
+    state.unboxed = state.unboxed.slice(0,200);
+    renderHistory();
+    btn.disabled = false;
+  }, 4750);
+});
+
+$('unboxLogToggle').addEventListener('click', () => {
+  const box = $('oddsBox');
+  box.classList.toggle('hidden');
+  $('unboxLogToggle').textContent = box.classList.contains('hidden') ? 'Show odds' : 'Hide odds';
+});
+
+function renderBoard(){
+  const el = $('boardWrap');
+  if(!state.board.length){ el.innerHTML = '<div class="empty">No saved scores yet.</div>'; return; }
+  const sorted = state.board.slice().sort((a,b) => b.coins - a.coins);
+  el.innerHTML = '<table><thead><tr><th>#</th><th>Player</th><th class="num">Wallet</th></tr></thead><tbody>' +
+    sorted.map((s,i) =>
+      `<tr><td>${i+1}</td><td>${esc(s.name)}</td><td class="num">${fmt(s.coins)}</td></tr>`
+    ).join('') + '</tbody></table>';
+}
+
+$('saveScore').addEventListener('click', () => {
+  const name = ($('playerName').value || '').trim().slice(0,18);
+  if(!name){ $('playerName').focus(); return; }
+  state.board.push({ name, coins: Math.max(0, Math.round(state.wallet)), at: Date.now() });
+  state.board = state.board.sort((a,b) => b.coins - a.coins).slice(0,25);
+  $('playerName').value = '';
+  save();
+  renderBoard();
+});
+
+$('randomiseSeed').addEventListener('click', () => {
+  state.clientSeed = randomHex(8);
+  save(); renderFair();
+});
+$('clientSeed').addEventListener('change', () => {
+  state.clientSeed = $('clientSeed').value || randomHex(8);
+  save(); renderFair();
+});
+$('revealSeed').addEventListener('click', () => {
+  state.serverSeed = randomHex(32);
+  state.nonce = 0;
+  addHistory('New server seed revealed — nonce reset', 0);
+  save(); renderFair(); renderHistory();
+});
+
+$('resetWallet').addEventListener('click', () => {
+  state.wallet = state.cfg.start;
+  addHistory('Wallet reset', 0);
+  renderWallet(); renderHistory();
+  $('flipVerdict').textContent = 'Wallet topped up. Pick a side and flip.';
+  $('flipVerdict').className = 'verdict';
+});
+
+const DEFAULT_PRICES = Object.fromEntries(CASES.map(c => [c.id, c.price]));
+const DEFAULT_TABLES = JSON.parse(JSON.stringify(TABLES));
+let adminOpen = false;
+
+async function sha(t){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+function initCfg(){
+  const c = state.cfg && typeof state.cfg === 'object' ? state.cfg : {};
+  state.cfg = {
+    flipWin: Number.isFinite(c.flipWin) ? c.flipWin : 0.49,
+    start:   Number.isFinite(c.start) ? c.start : START_WALLET,
+    prices:  c.prices || { ...DEFAULT_PRICES },
+    tables:  c.tables || JSON.parse(JSON.stringify(DEFAULT_TABLES)),
+    pinHash: c.pinHash || null
+  };
+  applyCfg();
+}
+function applyCfg(){
+  CASES.forEach(c => { if(Number.isFinite(state.cfg.prices[c.id])) c.price = state.cfg.prices[c.id]; });
+  for(const k of Object.keys(TABLES)) if(state.cfg.tables[k]) TABLES[k] = state.cfg.tables[k];
+  $('flipTitle').textContent = `Coin Flip — 2× payout, ${Math.round(state.cfg.flipWin*100)}% win chance`;
+  buildCaseGrid(); renderOdds();
+}
+function rtp(c){
+  const t = TABLES[c.table]; const n = Object.keys(t);
+  const tot = n.reduce((a,k) => a + t[k], 0); if(!tot) return 0;
+  return n.reduce((a,k) => a + t[k]/tot * COIN_ITEMS.find(i => i.name === k).value, 0) / c.price;
+}
+function renderAdmin(){
+  $('adminLock').classList.toggle('hidden', adminOpen);
+  $('adminBody').classList.toggle('hidden', !adminOpen);
+  if(!adminOpen) return;
+  const net = state.history.reduce((a,h) => a + (h.delta||0), 0);
+  const stat = (k,v) => `<div class="grow" style="background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px">
+     <small style="color:var(--muted);text-transform:uppercase;font-size:.7rem">${k}</small><div style="font-weight:800;font-size:1.2rem">${v}</div></div>`;
+  $('stats').innerHTML = stat('Wallet', fmt(state.wallet)) + stat('Rolls (nonce)', state.nonce) +
+    stat('Net (history)', (net>=0?'+':'') + fmt(net)) + stat('Cases opened', state.unboxed.length) + stat('Leaderboard', state.board.length);
+  $('setWallet').value = Math.round(state.wallet);
+  $('setStart').value = state.cfg.start;
+  $('flipWin').value = Math.round(state.cfg.flipWin*100); updFlipLbl();
+  $('caseEditor').innerHTML = CASES.map(c => {
+    const t = TABLES[c.table];
+    return `<div style="border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:12px">
+      <div class="row" style="align-items:flex-end;margin-bottom:10px">
+        <div class="grow"><b>${esc(c.name)}</b> <span style="color:var(--muted);font-size:.82rem">RTP ${(rtp(c)*100).toFixed(1)}%</span></div>
+        <div style="width:140px"><label>Price</label><input type="number" min="1" data-price="${c.id}" value="${c.price}"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+        ${COIN_ITEMS.map(i => `<div><label class="r-${i.rarity}" style="text-transform:none">${i.emoji} ${esc(i.name)}</label>
+          <input type="number" min="0" step="0.1" data-t="${c.table}" data-item="${esc(i.name)}" value="${t[i.name] || 0}"></div>`).join('')}
+      </div></div>`;
+  }).join('');
+}
+function updFlipLbl(){
+  const v = Number($('flipWin').value);
+  $('flipWinLbl').textContent = v + '%';
+  $('edgeLbl').textContent = (100 - 2*v) + '%';
+}
+
+$('pinGo').addEventListener('click', async () => {
+  const h = await sha($('pinIn').value);
+  const want = state.cfg.pinHash || await sha('1234');
+  if(h === want){ adminOpen = true; $('pinIn').value = ''; $('pinMsg').textContent = ''; renderAdmin(); }
+  else $('pinMsg').textContent = 'Wrong PIN.';
+});
+$('pinIn').addEventListener('keydown', e => { if(e.key === 'Enter') $('pinGo').click(); });
+$('lockAgain').addEventListener('click', () => { adminOpen = false; renderAdmin(); });
+
+$('applyWallet').addEventListener('click', () => {
+  const w = Math.floor(Number($('setWallet').value)), st = Math.floor(Number($('setStart').value));
+  if(Number.isFinite(w) && w >= 0){ addHistory('Admin set wallet', w - state.wallet); state.wallet = w; }
+  if(Number.isFinite(st) && st >= 1) state.cfg.start = st;
+  renderWallet(); renderAdmin();
+});
+$('give1k').addEventListener('click', () => { state.wallet += 1000; addHistory('Admin grant', 1000); renderWallet(); renderAdmin(); });
+
+$('flipWin').addEventListener('input', updFlipLbl);
+$('flipWin').addEventListener('change', () => { state.cfg.flipWin = Number($('flipWin').value)/100; applyCfg(); save(); });
+
+$('saveCases').addEventListener('click', () => {
+  document.querySelectorAll('[data-price]').forEach(el => {
+    const v = Math.floor(Number(el.value)); if(v >= 1) state.cfg.prices[el.dataset.price] = v;
+  });
+  const nt = {};
+  document.querySelectorAll('[data-t]').forEach(el => {
+    const v = Number(el.value); nt[el.dataset.t] = nt[el.dataset.t] || {};
+    if(v > 0) nt[el.dataset.t][el.dataset.item] = v;
+  });
+  for(const k of Object.keys(nt)){
+    if(!Object.keys(nt[k]).length){ $('caseMsg').style.color='var(--lose)'; $('caseMsg').textContent = 'Every case needs at least one item with weight above 0.'; return; }
+  }
+  state.cfg.tables = nt; applyCfg(); save(); renderAdmin();
+  $('caseMsg').style.color='var(--win)'; $('caseMsg').textContent = 'Saved.';
+});
+$('defaultCases').addEventListener('click', () => {
+  state.cfg.prices = { ...DEFAULT_PRICES }; state.cfg.tables = JSON.parse(JSON.stringify(DEFAULT_TABLES));
+  applyCfg(); save(); renderAdmin(); $('caseMsg').textContent = 'Defaults restored.';
+});
+
+$('clearBoard').addEventListener('click', () => { if(confirm('Clear the leaderboard?')){ state.board = []; save(); renderBoard(); renderAdmin(); } });
+$('clearHist').addEventListener('click', () => { if(confirm('Clear history and hash log?')){ state.history = []; state.log = []; state.unboxed = []; save(); renderHistory(); renderFair(); renderAdmin(); } });
+$('exportData').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type:'application/json' }));
+  a.download = 'mm2-lite-backup.json'; a.click();
+});
+$('importData').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => {
+    try { localStorage.setItem(STORE, JSON.stringify(JSON.parse(t))); location.reload(); }
+    catch(err){ alert('That file is not valid JSON.'); }
+  });
+});
+$('wipeAll').addEventListener('click', () => { if(confirm('Wipe wallet, settings, leaderboard and history?')){ localStorage.removeItem(STORE); location.reload(); } });
+$('savePin').addEventListener('click', async () => {
+  const v = $('newPin').value; if(v.length < 4){ alert('Use at least 4 characters.'); return; }
+  state.cfg.pinHash = await sha(v); $('newPin').value = ''; save(); alert('PIN saved.');
+});
+
+initCfg();
+renderWallet();
+renderFair();
+renderHistory();
+renderBoard();
+
+(function seedReel(){
+  const items = [];
+  for(let i = 0; i < 20; i++) items.push(itemHtml(pickFromTable(selectedCase.table, Math.random())));
+  $('reel').innerHTML = items.join('');
+})();
+</script>
+</body>
+</html>
